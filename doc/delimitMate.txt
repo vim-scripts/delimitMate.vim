@@ -1,0 +1,343 @@
+*delimitMate.txt* Trying to keep those beasts at bay!
+
+
+                              REFERENCE MANUAL *
+
+
+==============================================================================
+ 0.- CONTENTS                                           *delimitMate-contents*
+
+    1. Introduction____________________________|delimitMate|
+    2. Functionality___________________________|delimitMateFunctionality|
+        2.1 Automatic closing & exiting________|delimitMateAutoClose|
+        2.2 Expansion of space and CR__________|delimitMateExpansion|
+        2.3 Deletion of empty pairs____________|delimitMateBackspace|
+        2.4 Visual wrapping____________________|delimitMateVisualWrapping|
+    3. Customization___________________________|delimitMateOptions|
+        3.1 Option summary_____________________|delimitMateOptionSummary|
+        3.2 Options details____________________|delimitMateOptionDetails|
+    4. Public commands_________________________|delimitMatePublicCommands|
+    5. TODO list_______________________________|delimitMateTodo|
+    6. Maintainer______________________________|delimitMateMaintainer|
+    7. Credits_________________________________|delimitMateCredits|
+
+
+==============================================================================
+ 1.- INTRODUCTION                                                *delimitMate*
+
+The delimitMate plugin tries to provide some not so dumb help in the work with
+delimiters (brackets, quotes, etc.), with some optional auto-completions and
+expansions.
+
+When automatic closing is enabled, if an opening delimiter is inserted
+delimitMate inserts the closing pair and places the cursor between them. When
+automatic closing is disabled, no closing delimiters is inserted by
+delimitMate, but if a pair of delimiters is typed, the cursor is placed in the
+middle. Also, to get out of a pair of delimiters just type the right delimiter
+and the cursor will jump to the right.
+
+If the cursor is inside an empty pair of delimiters <Space> and <CR> can be
+expanded to follow your coding style, you just need to define a couple of
+options with the desired mappings for them.
+
+==============================================================================
+ 2. FUNCTIONALITY PROVIDED                          *delimitMateFunctionality*
+
+------------------------------------------------------------------------------
+   2.1 AUTOMATIC CLOSING AND EXITING                    *delimitMateAutoClose*
+
+With automatic closing enabled, if an opening delimiter is inserted the plugin
+inserts the closing delimiter and places the cursor between the pair. With
+automatic closing disabled, no closing delimiters is inserted by delimitMate,
+but when a pair of delimiters is typed, the cursor is placed in the middle.
+
+When the cursor is inside an empty pair or located next to the left of a
+closing delimiter, the cursor is placed outside the pair to the right of the
+closing delimiter.
+
+Unless |'b:delimitMate_matchpairs'| and |'b:delimitMate_quotes'|is set, this
+script uses the values in '&matchpirs' to identify the pairs, and "\" ' ` "
+for quotes respectively.
+
+The following table shows the behaviour, this applies to quotes too (the final
+position of the cursor is represented by a "|"):
+
+With auto-close: >
+                          Type   |  You get
+                        ====================
+                           (     |    (|)
+                        –––––––––|––––––––––
+                           ()    |    ()|
+<
+Without auto-close: >
+
+                          Type   |  You get
+                        ====================
+                           ()    |    (|)
+                        –––––––––|––––––––––
+                           ())   |    ()|
+<
+------------------------------------------------------------------------------
+   2.2 EXPANSION OF SPACE AND CAR RETURN                *delimitMateExpansion*
+
+When the cursor is inside an empty pair of delimiters, <Space> and <CR> can be
+expanded to follow your coding style with |'b:delimitMate_expand_space'| and
+|'b:delimitMate_expand_cr'|. e.g. (cursor represented by a "|"):
+
+Expand <Space> to: >
+
+                  <Space><Space><Left>  |  You get
+                ====================================
+                            (|)         |    ( | )
+<
+Expand <CR> to: >
+
+                    <CR><CR><Up>  |  You get
+                  ============================
+                         (|)      |    (
+                                  |    |
+                                  |    )
+<
+
+------------------------------------------------------------------------------
+   2.3 DELETION OF EMPTY PAIR                           *delimitMateBackspace*
+
+If you press backspace inside an empty pair, both delimiters are deleted.
+
+e.g.: >
+
+                 Before           |  After
+               ====================================
+                 call expand(|)   |  call expand|
+<
+
+------------------------------------------------------------------------------
+   2.4 WRAPPING OF VISUAL SELECTION                *delimitMateVisualWrapping*
+
+When visual mode is active this script allows for the selection to be enclosed
+with delimiters. But, since brackets have special meaning in visual mode, a
+leader (the value of 'mapleader' by default) should precede the delimiter.
+This feature doesn't currently work on blockwise visual mode, any suggestions
+will be welcome.
+
+e.g. (selection represented between square brackets): >
+
+             Selected text       |  After q"
+           =============================================
+            An [absurd] example! | An "absurd" example!
+<
+==============================================================================
+ 3. CUSTOMIZATION                                         *delimitMateOptions*
+
+------------------------------------------------------------------------------
+   3.1 OPTIONS SUMMARY                              *delimitMateOptionSummary*
+
+The behaviour of this script can be customized setting the following options
+in your vimrc file.
+
+|'loaded_delimitMate'|          Turns off the script.
+
+|'delimitMate_autoclose'|       Tells delimitMate whether to automagically
+                                insert the closing delimiter.
+
+|'b:delimitMate_matchpairs'|    Tells delimitMate which characters are
+                                matching pairs.
+
+|'b:delimitMate_quotes'|        Tells delimitMate which quotes should be
+                                used.
+
+|'delimitMate_visual_leader'|   Sets the leader to be used in visual mode.
+
+|'b:delimitMate_expand_cr'|     Sets the expansion for <CR> inside an empty
+                                pair of matching delimiters or quotes.
+
+|'b:delimitMate_expand_space'|  Sets the expansion for <Space> inside an
+                                empty pair of matching delimiters or quotes.
+
+------------------------------------------------------------------------------
+   3.2 OPTIONS DETAILS                              *delimitMateOptionDetails*
+
+Add the shown lines to your vimrc files in order to set the below options.
+
+                                                     *'loaded_delimitMate'*
+You can turn off this plugin using this line in your vimrc: >
+        let loaded_delimitMate = 1
+<
+------------------------------------------------------------------------------
+                                                     *'delimitMate_autoclose'*
+Values: 0 or 1.
+Default: 1
+
+If this option is set to 0, delimitMate will not add a closing delimiter
+automagically. See |delimitMateAutoClose| for details.
+e.g.: >
+        let delimitMate_autoclose = 0
+<
+------------------------------------------------------------------------------
+                                                *'b:delimitMate_matchpairs'*
+Values: A string with |matchpairs| syntax.
+Default: &matchpairs
+
+Use this option to tell delimitMate which characters should be considered
+matching pairs. Read |delimitMateAutoClose| for details.
+e.g: >
+        let delimitMate = "(:),[:],{:},<:>"
+<
+------------------------------------------------------------------------------
+                                                      *'b:delimitMate_quotes'*
+Values: A string of characters separated by spaces.
+Default: "\" ' `"
+
+Use this option to tell delimitMate which characters should be considered as
+quotes. Read |delimitMateAutoClose| for details.
+e.g.: >
+        let b:delimitMate_quotes = "\" ' ` *"
+<
+------------------------------------------------------------------------------
+                                                 *'delimitMate_visual_leader'*
+Values: Any character.
+Default: q
+
+The value of this option will be used to wrap the selection in visual mode
+when followed by a delimiter. Read |delimitMateVisualWrap| for details.
+e.g: >
+        let delimitMate_visual_leader = "f"
+<
+------------------------------------------------------------------------------
+                                                   *'b:delimitMate_expand_cr'*
+Values: A key mapping.
+Default: "\<CR>"
+
+The value of this option will be used to expand the car return character when
+typed inside an empty delimiter pair. Read |delimitMateExpansion| for details.
+e.g.: >
+        let b:delimitMate_expand_cr = "\<CR>\<CR>\<Up>"
+<
+------------------------------------------------------------------------------
+                                                *'b:delimitMate_expand_space'*
+Values: A key mapping.
+Default: "\<Space>"
+
+The value of this option will be used to expand the space character when typed
+inside an empty delimiter pair. Read |delimitMateExpansion| for details.
+e.g.: >
+        let b:delimitMate_expand_space = "\<Space>\<Space>\<Left>"
+<
+
+==============================================================================
+ 4. PUBLIC COMMANDS                                *delimitMatePublicCommands*
+
+------------------------------------------------------------------------------
+:DelimitMateReload                                        *:DelimitMateReload*
+
+Re-sets all the mappings used for this script, use it if any option has been
+changed.
+
+------------------------------------------------------------------------------
+:DelimitMateTest                                            *:DelimitMateTest*
+
+This command tests every mapping set-up for this script, useful for testing
+custom configurations.
+
+The following output corresponds to the default values, it will be different
+depending on your configuration. "Open & close:" represents the final result
+when the closing delimiter has been inserted, either manually or
+automatically, see |delimitMateExpansion|. "Delete:" typing backspace in an
+empty pair, see |delimitMateBackspace|. "Exit:" typing a closing delimiter
+inside a pair of delimiters, see |delimitMateAutoclose|. "Space:" the
+expansion, if any, of space, see |delimitMateExpansion|. "Visual-L",
+"Visual-R" and "Visual" shows visual wrapping, see
+|delimitMateVisualWrapping|. "Car return:" the expansion of car return, see
+|delimitMateExpansion|. The cursor's position at the end of every test is
+represented by an "|": >
+
+            * AUTOCLOSE:
+            Open & close: (|)
+            Delete: |
+            Exit: ()|
+            Space: ( |)
+            Visual-L: (v)
+            Visual-R: (v)
+            Car return: (
+            |)
+
+            Open & close: {|}
+            Delete: |
+            Exit: {}|
+            Space: { |}
+            Visual-L: {v}
+            Visual-R: {v}
+            Car return: {
+            |}
+
+            Open & close: [|]
+            Delete: |
+            Exit: []|
+            Space: [ |]
+            Visual-L: [v]
+            Visual-R: [v]
+            Car return: [
+            |]
+
+            Open & close: "|"
+            Delete: |
+            Exit: ""|
+            Space: " |"
+            Visual: "v"
+            Car return: "
+            |"
+
+            Open & close: '|'
+            Delete: |
+            Exit: ''|
+            Space: ' |'
+            Visual: 'v'
+            Car return: '
+            |'
+
+            Open & close: `|`
+            Delete: |
+            Exit: ``|
+            Space: ` |`
+            Visual: `v`
+            Car return: `
+            |`
+<
+
+==============================================================================
+ 5. TODO LIST                                                *delimitMateTodo*
+
+- Automatic set-up by file type.
+- Make visual wrapping work on blockwise visual mode.
+- Limit behaviour by region.
+- Fix some problems wrapping a single empty line in visual mode.
+
+==============================================================================
+ 6. MAINTAINER                                         *delimitMateMaintainer*
+
+Hi there! My name is Israel Chauca F. and I can be reached at:
+    mailto:israelchauca@gmail.com
+
+Feel free to send me any suggestions and/or comments about this plugin, I'll
+be very pleased to read them.
+
+==============================================================================
+ 7. CREDITS                                               *delimitMateCredits*
+
+Some of the code that make this script is modified or just shamelessly copied
+from the following sources:
+
+   - Ian McCracken
+     Post titled: Vim, Part II: Matching Pairs:
+     http://concisionandconcinnity.blogspot.com/
+
+   - Aristotle Pagaltzis
+     From the comments on the previous blog post and from:
+     http://gist.github.com/144619
+
+   - Vim Scripts:
+     http://www.vim.org/scripts
+
+This script was inspired by the auto-completion of delimiters of TextMate.
+
+vim:tw=78:ts=8:ft=help:norl:
