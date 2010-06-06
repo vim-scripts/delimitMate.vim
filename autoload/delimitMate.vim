@@ -1,6 +1,6 @@
 " ============================================================================
 " File:        autoload/delimitMate.vim
-" Version:     2.3
+" Version:     2.3.1
 " Modified:    2010-06-06
 " Description: This plugin provides auto-completion for quotes, parens, etc.
 " Maintainer:  Israel Chauca F. <israelchauca@gmail.com>
@@ -490,8 +490,6 @@ function! delimitMate#ExpandSpace() "{{{
 		return "\<Space>"
 	endif
 	if delimitMate#WithinEmptyPair()
-		" Expand:
-		call insert(b:delimitMate_buffer, 's')
 		" Expand:
 		call insert(b:delimitMate_buffer, 's')
 		return delimitMate#WriteAfter(' ') . "\<Space>"
