@@ -1,143 +1,14 @@
 " ============================================================================
 " File:        autoload/delimitMate.vim
-" Version:     2.4.1
-" Modified:    2010-07-31
+" Version:     2.5
+" Modified:    2010-09-22
 " Description: This plugin provides auto-completion for quotes, parens, etc.
 " Maintainer:  Israel Chauca F. <israelchauca@gmail.com>
 " Manual:      Read ":help delimitMate".
 
 " Utilities {{{
 
-function! delimitMate#option_init(name, default) "{{{
-	let b = exists("b:delimitMate_" . a:name)
-	let g = exists("g:delimitMate_" . a:name)
-	let prefix = "_l_delimitMate_"
-
-	if !b && !g
-		let sufix = a:default
-	elseif !b && g
-		exec "let sufix = g:delimitMate_" . a:name
-	else
-		exec "let sufix = b:delimitMate_" . a:name
-	endif
-	if exists("b:" . prefix . a:name)
-		exec "unlockvar! b:" . prefix . a:name
-	endif
-	exec "let b:" . prefix . a:name . " = " . string(sufix)
-	exec "lockvar! b:" . prefix . a:name
-endfunction "}}}
-
-function! delimitMate#Init() "{{{
-" Initialize variables:
-
-	" autoclose
-	call delimitMate#option_init("autoclose", 1)
-
-	" matchpairs
-	call delimitMate#option_init("matchpairs", string(&matchpairs)[1:-2])
-	call delimitMate#option_init("matchpairs_list", split(b:_l_delimitMate_matchpairs, ','))
-	call delimitMate#option_init("left_delims", split(b:_l_delimitMate_matchpairs, ':.,\='))
-	call delimitMate#option_init("right_delims", split(b:_l_delimitMate_matchpairs, ',\=.:'))
-
-	" quotes
-	call delimitMate#option_init("quotes", "\" ' `")
-	call delimitMate#option_init("quotes_list", split(b:_l_delimitMate_quotes))
-
-	" nesting_quotes
-	call delimitMate#option_init("nesting_quotes", [])
-
-	" excluded_regions
-	call delimitMate#option_init("excluded_regions", "Comment")
-	call delimitMate#option_init("excluded_regions_list", split(b:_l_delimitMate_excluded_regions, ',\s*'))
-	let enabled = len(b:_l_delimitMate_excluded_regions_list) > 0
-	call delimitMate#option_init("excluded_regions_enabled", enabled)
-
-	" visual_leader
-	let leader = exists('b:maplocalleader') ? b:maplocalleader :
-					\ exists('g:mapleader') ? g:mapleader : "\\"
-	call delimitMate#option_init("visual_leader", leader)
-
-	" expand_space
-	if exists("b:delimitMate_expand_space") && type(b:delimitMate_expand_space) == type("")
-		echom "b:delimitMate_expand_space is '".b:delimitMate_expand_space."' but it must be either 1 or 0!"
-		echom "Read :help 'delimitMate_expand_space' for more details."
-		unlet b:delimitMate_expand_space
-		let b:delimitMate_expand_space = 1
-	endif
-	if exists("g:delimitMate_expand_space") && type(g:delimitMate_expand_space) == type("")
-		echom "delimitMate_expand_space is '".g:delimitMate_expand_space."' but it must be either 1 or 0!"
-		echom "Read :help 'delimitMate_expand_space' for more details."
-		unlet g:delimitMate_expand_space
-		let g:delimitMate_expand_space = 1
-	endif
-	call delimitMate#option_init("expand_space", 0)
-
-	" expand_cr
-	if exists("b:delimitMate_expand_cr") && type(b:delimitMate_expand_cr) == type("")
-		echom "b:delimitMate_expand_cr is '".b:delimitMate_expand_cr."' but it must be either 1 or 0!"
-		echom "Read :help 'delimitMate_expand_cr' for more details."
-		unlet b:delimitMate_expand_cr
-		let b:delimitMate_expand_cr = 1
-	endif
-	if exists("g:delimitMate_expand_cr") && type(g:delimitMate_expand_cr) == type("")
-		echom "delimitMate_expand_cr is '".g:delimitMate_expand_cr."' but it must be either 1 or 0!"
-		echom "Read :help 'delimitMate_expand_cr' for more details."
-		unlet g:delimitMate_expand_cr
-		let g:delimitMate_expand_cr = 1
-	endif
-	if (&backspace !~ 'eol' || &backspace !~ 'start') &&
-				\ ((exists('b:delimitMate_expand_cr') && b:delimitMate_expand_cr == 1) ||
-				\ (exists('g:delimitMate_expand_cr') && g:delimitMate_expand_cr == 1))
-		echom "delimitMate: In order to use the <CR> expansion, you need to have 'eol' and 'start' in your backspace option. Read :help 'backspace'."
-		let b:delimitMate_expand_cr = 0
-	endif
-	call delimitMate#option_init("expand_cr", 0)
-
-	" smart_quotes
-	call delimitMate#option_init("smart_quotes", 1)
-
-	" apostrophes
-	call delimitMate#option_init("apostrophes", "")
-	call delimitMate#option_init("apostrophes_list", split(b:_l_delimitMate_apostrophes, ":\s*"))
-
-	" tab2exit
-	call delimitMate#option_init("tab2exit", 1)
-
-	" balance_matchpairs
-	call delimitMate#option_init("balance_matchpairs", 0)
-
-	let b:_l_delimitMate_buffer = []
-
-	let b:loaded_delimitMate = 1
-
-endfunction "}}} Init()
-
-function! delimitMate#Map() "{{{
-	" Set mappings:
-	try
-		let save_cpo = &cpo
-		let save_keymap = &keymap
-		let save_iminsert = &iminsert
-		let save_imsearch = &imsearch
-		set keymap=
-		set cpo&vim
-		if b:_l_delimitMate_autoclose
-			call delimitMate#AutoClose()
-		else
-			call delimitMate#NoAutoClose()
-		endif
-		call delimitMate#VisualMaps()
-		call delimitMate#ExtraMappings()
-	finally
-		let &cpo = save_cpo
-		let &keymap = save_keymap
-		let &iminsert = save_iminsert
-		let &imsearch = save_imsearch
-	endtry
-
-	let b:delimitMate_enabled = 1
-
-endfunction "}}} Map()
+let delimitMate_loaded = 1
 
 function! delimitMate#ShouldJump() "{{{
 	" Returns 1 if the next character is a closing delimiter.
@@ -581,15 +452,16 @@ function! delimitMate#Finish() " {{{
 	let len = len(b:_l_delimitMate_buffer)
 	if len > 0
 		let buffer = join(b:_l_delimitMate_buffer, '')
+		let len2 = len(buffer)
 		" Reset buffer:
 		let b:_l_delimitMate_buffer = []
 		let line = getline('.')
 		let col = col('.') -2
 		"echom 'col: ' . col . '-' . line[:col] . "|" . line[col+len+1:] . '%' . buffer
 		if col < 0
-			call setline('.', line[col+len+1:])
+			call setline('.', line[col+len2+1:])
 		else
-			call setline('.', line[:col] . line[col+len+1:])
+			call setline('.', line[:col] . line[col+len2+1:])
 		endif
 		let i = 1
 		let lefts = "\<Left>"
@@ -611,149 +483,18 @@ endfunction " }}}
 
 " }}}
 
-" Mappers: {{{
-function! delimitMate#NoAutoClose() "{{{
-	" inoremap <buffer> ) <C-R>=delimitMate#SkipDelim('\)')<CR>
-	for delim in b:_l_delimitMate_right_delims + b:_l_delimitMate_quotes_list
-		exec 'inoremap <silent> <buffer> ' . delim . ' <C-R>=delimitMate#SkipDelim("' . escape(delim,'"\|') . '")<CR>'
-	endfor
-endfunction "}}}
-
-function! delimitMate#AutoClose() "{{{
-	" Add matching pair and jump to the midle:
-	" inoremap <silent> <buffer> ( ()<Left>
-	let i = 0
-	while i < len(b:_l_delimitMate_matchpairs_list)
-		let ld = b:_l_delimitMate_left_delims[i]
-		let rd = b:_l_delimitMate_right_delims[i]
-		exec 'inoremap <silent> <buffer> ' . ld . ' ' . ld . '<C-R>=delimitMate#ParenDelim("' . rd . '")<CR>'
-		let i += 1
-	endwhile
-
-	" Exit from inside the matching pair:
-	for delim in b:_l_delimitMate_right_delims
-		exec 'inoremap <silent> <buffer> ' . delim . ' <C-R>=delimitMate#JumpOut("\' . delim . '")<CR>'
-	endfor
-
-	" Add matching quote and jump to the midle, or exit if inside a pair of matching quotes:
-	" inoremap <silent> <buffer> " <C-R>=delimitMate#QuoteDelim("\"")<CR>
-	for delim in b:_l_delimitMate_quotes_list
-		exec 'inoremap <silent> <buffer> ' . delim . ' <C-R>=delimitMate#QuoteDelim("\' . delim . '")<CR>'
-	endfor
-
-	" Try to fix the use of apostrophes (de-activated by default):
-	" inoremap <silent> <buffer> n't n't
-	for map in b:_l_delimitMate_apostrophes_list
-		exec "inoremap <silent> <buffer> " . map . " " . map
-	endfor
-endfunction "}}}
-
-function! delimitMate#VisualMaps() " {{{
-	let VMapMsg = "delimitMate: delimitMate is disabled on blockwise visual mode."
-	let vleader = b:_l_delimitMate_visual_leader
-	" Wrap the selection with matching pairs, but do nothing if blockwise visual mode is active:
-	for del in b:_l_delimitMate_right_delims + b:_l_delimitMate_left_delims + b:_l_delimitMate_quotes_list
-		exec "vnoremap <silent> <buffer> <expr> " . vleader . del . ' delimitMate#Visual("' . escape(del, '")') . '")'
-	endfor
-endfunction "}}}
-
-function! delimitMate#ExtraMappings() "{{{
-	" If pair is empty, delete both delimiters:
-	inoremap <silent> <buffer> <BS> <C-R>=delimitMate#BS()<CR>
-
-	" If pair is empty, delete closing delimiter:
-	inoremap <silent> <buffer> <expr> <S-BS> delimitMate#WithinEmptyPair() ? "\<C-R>=delimitMate#Del()\<CR>" : "\<S-BS>"
-
-	" Expand return if inside an empty pair:
-	if b:_l_delimitMate_expand_cr != 0
-		inoremap <silent> <buffer> <CR> <C-R>=delimitMate#ExpandReturn()<CR>
-	endif
-
-	" Expand space if inside an empty pair:
-	if b:_l_delimitMate_expand_space != 0
-		inoremap <silent> <buffer> <Space> <C-R>=delimitMate#ExpandSpace()<CR>
-	endif
-
-	" Jump out ot any empty pair:
-	if b:_l_delimitMate_tab2exit
-		inoremap <silent> <buffer> <S-Tab> <C-R>=delimitMate#JumpAny("\<S-Tab>")<CR>
-	endif
-
-	" Fix the re-do feature:
-	inoremap <silent> <buffer> <Esc> <C-R>=delimitMate#Finish()<CR><Esc>
-
-	" Flush the char buffer on mouse click:
-	inoremap <silent> <buffer> <LeftMouse> <C-R>=delimitMate#Finish()<CR><LeftMouse>
-	inoremap <silent> <buffer> <RightMouse> <C-R>=delimitMate#Finish()<CR><RightMouse>
-
-	" Flush the char buffer on key movements:
-	inoremap <silent> <buffer> <Left> <C-R>=delimitMate#Finish()<CR><Left>
-	inoremap <silent> <buffer> <Right> <C-R>=delimitMate#Finish()<CR><Right>
-	inoremap <silent> <buffer> <Up> <C-R>=delimitMate#Finish()<CR><Up>
-	inoremap <silent> <buffer> <Down> <C-R>=delimitMate#Finish()<CR><Down>
-	inoremap <silent> <buffer> <Home> <C-R>=delimitMate#Finish()<CR><Home>
-	inoremap <silent> <buffer> <End> <C-R>=delimitMate#Finish()<CR><End>
-
-	inoremap <silent> <buffer> <Del> <C-R>=delimitMate#Del()<CR>
-
-	" The following simply creates an ambiguous mapping so vim fully processes
-	" the escape sequence for terminal keys, see 'ttimeout' for a rough
-	" explanation, this just forces it to work
-	if !has('gui_running')
-		imap <silent> <C-[>OC <RIGHT>
-	endif
-endfunction "}}}
-
-function! delimitMate#UnMap() " {{{
-	let imaps =
-				\ b:_l_delimitMate_right_delims +
-				\ b:_l_delimitMate_left_delims +
-				\ b:_l_delimitMate_quotes_list +
-				\ b:_l_delimitMate_apostrophes_list +
-				\ ['<BS>', '<S-BS>', '<Del>', '<CR>', '<Space>', '<S-Tab>', '<Esc>'] +
-				\ ['<Up>', '<Down>', '<Left>', '<Right>', '<LeftMouse>', '<RightMouse>']
-
-	let vmaps =
-				\ b:_l_delimitMate_right_delims +
-				\ b:_l_delimitMate_left_delims +
-				\ b:_l_delimitMate_quotes_list
-
-	for map in imaps
-		if maparg(map, "i") =~? 'delimitMate'
-			exec 'silent! iunmap <buffer> ' . map
-		endif
-	endfor
-
-	if !exists("b:_l_delimitMate_visual_leader")
-		let vleader = ""
-	else
-		let vleader = b:_l_delimitMate_visual_leader
-	endif
-	for map in vmaps
-		if maparg(vleader . map, "v") =~? "delimitMate"
-			exec 'silent! vunmap <buffer> ' . vleader . map
-		endif
-	endfor
-
-	if !has('gui_running')
-		silent! iunmap <C-[>OC
-	endif
-
-	let b:delimitMate_enabled = 0
-endfunction " }}} delimitMate#UnMap()
-
-"}}}
-
 " Tools: {{{
 function! delimitMate#TestMappings() "{{{
-	exec "normal i*b:_l_delimitMate_autoclose = " . b:_l_delimitMate_autoclose . "\<Esc>o"
-	exec "normal i*b:_l_delimitMate_expand_space = " . b:_l_delimitMate_expand_space . "\<Esc>o"
-	exec "normal i*b:_l_delimitMate_expand_cr = " . b:_l_delimitMate_expand_cr . "\<Esc>o\<Esc>o"
-	echom b:_l_delimitMate_autoclose.b:_l_delimitMate_expand_space.b:_l_delimitMate_expand_cr
+	let options = sort(keys(delimitMate#OptionsList()))
+	let optoutput = ['delimitMate Report', '', 'Options:']
+	for option in options
+		exec 'call add(optoutput, ''delimitMate_''.option.'' = ''.string(b:_l_delimitMate_'.option.'))'
+	endfor
+	call append(line('$'), optoutput + ['','Showcase:', ''])
 	if b:_l_delimitMate_autoclose
 		" {{{
 		for i in range(len(b:_l_delimitMate_left_delims))
-			exec "normal GGoOpen & close: " . b:_l_delimitMate_left_delims[i]. "|"
+			exec "normal GGoOpen: " . b:_l_delimitMate_left_delims[i]. "|"
 			exec "normal oDelete: " . b:_l_delimitMate_left_delims[i] . "\<BS>|"
 			exec "normal oExit: " . b:_l_delimitMate_left_delims[i] . b:_l_delimitMate_right_delims[i] . "|"
 			exec "normal oSpace: " . b:_l_delimitMate_left_delims[i] . " |"
@@ -761,17 +502,17 @@ function! delimitMate#TestMappings() "{{{
 			exec "normal GGoVisual-L: v\<Esc>v" . b:_l_delimitMate_visual_leader . b:_l_delimitMate_left_delims[i]
 			exec "normal oVisual-R: v\<Esc>v" . b:_l_delimitMate_visual_leader . b:_l_delimitMate_right_delims[i]
 			exec "normal oCar return: " . b:_l_delimitMate_left_delims[i] . "\<CR>|"
-			exec "normal GGoDelete car return: " . b:_l_delimitMate_left_delims[i] . "\<CR>\<BS>|\<Esc>GGA\<Esc>o\<Esc>o"
+			exec "normal GGoDelete car return: " . b:_l_delimitMate_left_delims[i] . "\<CR>\<BS>|\<Esc>GG\<Esc>o"
 		endfor
 		for i in range(len(b:_l_delimitMate_quotes_list))
-			exec "normal GGAOpen & close: " . b:_l_delimitMate_quotes_list[i]	. "|"
-			exec "normal oDelete: "
+			exec "normal GGAOpen: " . b:_l_delimitMate_quotes_list[i]	. "|"
+			exec "normal oDelete: " . b:_l_delimitMate_left_delims[i] . b:_l_delimitMate_right_delims[i] . "\<BS>|"
 			exec "normal oExit: " . b:_l_delimitMate_quotes_list[i] . b:_l_delimitMate_quotes_list[i] . "|"
 			exec "normal oSpace: " . b:_l_delimitMate_quotes_list[i] . " |"
 			exec "normal oDelete space: " . b:_l_delimitMate_quotes_list[i] . " \<BS>|"
 			exec "normal GGoVisual: v\<Esc>v" . b:_l_delimitMate_visual_leader . b:_l_delimitMate_quotes_list[i]
 			exec "normal oCar return: " . b:_l_delimitMate_quotes_list[i] . "\<CR>|"
-			exec "normal GGoDelete car return: " . b:_l_delimitMate_quotes_list[i] . "\<CR>\<BS>|\<Esc>GGA\<Esc>o\<Esc>o"
+			exec "normal GGoDelete car return: " . b:_l_delimitMate_quotes_list[i] . "\<CR>\<BS>|\<Esc>GG\<Esc>o"
 		endfor
 		"}}}
 	else
@@ -785,7 +526,7 @@ function! delimitMate#TestMappings() "{{{
 			exec "normal GGoVisual-L: v\<Esc>v" . b:_l_delimitMate_visual_leader . b:_l_delimitMate_left_delims[i]
 			exec "normal oVisual-R: v\<Esc>v" . b:_l_delimitMate_visual_leader . b:_l_delimitMate_right_delims[i]
 			exec "normal oCar return: " . b:_l_delimitMate_left_delims[i] . b:_l_delimitMate_right_delims[i] . "\<CR>|"
-			exec "normal GGoDelete car return: " . b:_l_delimitMate_left_delims[i] . b:_l_delimitMate_right_delims[i] . "\<CR>\<BS>|\<Esc>GGA\<Esc>o\<Esc>o"
+			exec "normal GGoDelete car return: " . b:_l_delimitMate_left_delims[i] . b:_l_delimitMate_right_delims[i] . "\<CR>\<BS>|\<Esc>GG\<Esc>o"
 		endfor
 		for i in range(len(b:_l_delimitMate_quotes_list))
 			exec "normal GGoOpen & close: " . b:_l_delimitMate_quotes_list[i]	. b:_l_delimitMate_quotes_list[i] . "|"
@@ -795,12 +536,71 @@ function! delimitMate#TestMappings() "{{{
 			exec "normal oDelete space: " . b:_l_delimitMate_quotes_list[i] . b:_l_delimitMate_quotes_list[i] . " \<BS>|"
 			exec "normal GGoVisual: v\<Esc>v" . b:_l_delimitMate_visual_leader . b:_l_delimitMate_quotes_list[i]
 			exec "normal oCar return: " . b:_l_delimitMate_quotes_list[i] . b:_l_delimitMate_quotes_list[i] . "\<CR>|"
-			exec "normal GGoDelete car return: " . b:_l_delimitMate_quotes_list[i] . b:_l_delimitMate_quotes_list[i] . "\<CR>\<BS>|\<Esc>GGA\<Esc>o\<Esc>o"
+			exec "normal GGoDelete car return: " . b:_l_delimitMate_quotes_list[i] . b:_l_delimitMate_quotes_list[i] . "\<CR>\<BS>|\<Esc>GG\<Esc>o"
 		endfor
 	endif "}}}
-	exec "normal \<Esc>i"
+
+	" Check if mappings were set. {{{
+	let imaps = b:_l_delimitMate_right_delims
+	let imaps = imaps + ( b:_l_delimitMate_autoclose ? b:_l_delimitMate_left_delims : [] )
+	let imaps = imaps +
+				\ b:_l_delimitMate_quotes_list +
+				\ b:_l_delimitMate_apostrophes_list +
+				\ ['<BS>', '<S-BS>', '<Del>', '<S-Tab>', '<Esc>'] +
+				\ ['<Up>', '<Down>', '<Left>', '<Right>', '<LeftMouse>', '<RightMouse>'] +
+				\ ['<Home>', '<End>', '<PageUp>', '<PageDown>', '<S-Down>', '<S-Up>']
+	let imaps = imaps + ( b:_l_delimitMate_expand_cr ?  ['<CR>'] : [] )
+	let imaps = imaps + ( b:_l_delimitMate_expand_space ?  ['<Space>'] : [] )
+
+	let vmaps =
+				\ b:_l_delimitMate_right_delims +
+				\ b:_l_delimitMate_left_delims +
+				\ b:_l_delimitMate_quotes_list
+
+	let ibroken = []
+	for map in imaps
+		if maparg(map, "i") !~? 'delimitMate'
+			let output = ''
+			if map == '|'
+				let map = '<Bar>'
+			endif
+			redir => output | execute "verbose imap ".map | redir END
+			let ibroken = ibroken + [map.": is not set:"] + split(output, '\n')
+		endif
+	endfor
+	let ibroken = len(ibroken) > 0 ? ['IMAP'] + ibroken : []
+
+	let vbroken = []
+	if !exists("b:_l_delimitMate_visual_leader")
+		let vleader = ""
+	else
+		let vleader = b:_l_delimitMate_visual_leader
+	endif
+	for map in vmaps
+		if maparg(vleader . map, "v") !~? "delimitMate"
+			let output = ''
+			if map == '|'
+				let map = '<Bar>'
+			endif
+			redir => output | execute "verbose imap ".map | redir END
+			let vbroken = vbroken + [vleader.map.": is not set:"] + split(output,'\n')
+		endif
+	endfor
+	let vbroken = len(vbroken) > 0 ? ['VMAP'] + vbroken : []
+
+	unlet! output
+	if ibroken == [] && vbroken == []
+		let output = ['Mappings:', '', 'All mappings were set-up.', '--------------------', '', '']
+	else
+		let output = ['Mappings:', ''] + ibroken + vbroken + ['--------------------', '', '']
+	endif
+	call append('$', output)
+	" }}}
 endfunction "}}}
 
+function! delimitMate#OptionsList() "{{{
+	return {'autoclose' : 1,'matchpairs': &matchpairs, 'quotes' : '" '' `', 'nesting_quotes' : [], 'visual_leader' : ( exists('mapleader') ? mapleader : exists('b:maplocalleader') ? b:maplocalleader : '\' ), 'expand_cr' : 0, 'expand_space' : 0, 'smart_quotes' : 1, 'balance_matchpairs' : 0, 'excluded_regions' : 'Comment', 'excluded_ft' : '', 'apostrophes' : ''}
+endfunction " delimitMate#OptionsList }}}
 "}}}
 
 " vim:foldmethod=marker:foldcolumn=4
