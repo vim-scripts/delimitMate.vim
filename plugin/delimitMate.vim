@@ -1,10 +1,10 @@
-" ============================================================================
 " File:        plugin/delimitMate.vim
-" Version:     2.5.1
-" Modified:    2010-09-30
+" Version:     2.6
+" Modified:    2011-01-14
 " Description: This plugin provides auto-completion for quotes, parens, etc.
 " Maintainer:  Israel Chauca F. <israelchauca@gmail.com>
 " Manual:      Read ":help delimitMate".
+" ============================================================================
 
 " Initialization: {{{
 
@@ -27,7 +27,7 @@ if v:version < 700
 endif
 
 let s:loaded_delimitMate = 1
-let delimitMate_version = "2.5.1"
+let delimitMate_version = "2.6"
 
 function! s:option_init(name, default) "{{{
 	let b = exists("b:delimitMate_" . a:name)
@@ -104,13 +104,15 @@ function! s:init() "{{{
 		unlet g:delimitMate_expand_cr
 		let g:delimitMate_expand_cr = 1
 	endif
-	if (&backspace !~ 'eol' || &backspace !~ 'start') &&
+	if ((&backspace !~ 'eol' || &backspace !~ 'start') && &backspace != 2) &&
 				\ ((exists('b:delimitMate_expand_cr') && b:delimitMate_expand_cr == 1) ||
 				\ (exists('g:delimitMate_expand_cr') && g:delimitMate_expand_cr == 1))
-		echom "delimitMate: In order to use the <CR> expansion, you need to have 'eol' and 'start' in your backspace option. Read :help 'backspace'."
-		let b:delimitMate_expand_cr = 0
+		echom "delimitMate: There seems to be some incompatibility with your settings that may interfer with the expansion of <CR>. See :help 'delimitMate_expand_cr' for details."
 	endif
 	call s:option_init("expand_cr", 0)
+
+	" smart_matchpairs
+	call s:option_init("smart_matchpairs", '^\%(\w\|\!\|£\|\$\|_\|["'']\s*\S\)')
 
 	" smart_quotes
 	call s:option_init("smart_quotes", 1)
@@ -126,8 +128,6 @@ function! s:init() "{{{
 	call s:option_init("balance_matchpairs", 0)
 
 	let b:_l_delimitMate_buffer = []
-
-	let b:loaded_delimitMate = 1
 
 endfunction "}}} Init()
 
@@ -169,7 +169,7 @@ function! s:Unmap() " {{{
 				\ b:_l_delimitMate_apostrophes_list +
 				\ ['<BS>', '<S-BS>', '<Del>', '<CR>', '<Space>', '<S-Tab>', '<Esc>'] +
 				\ ['<Up>', '<Down>', '<Left>', '<Right>', '<LeftMouse>', '<RightMouse>'] +
-				\ ['<Home>', '<End>', '<PageUp>', '<PageDown>', '<S-Down>', '<S-Up>']
+				\ ['<Home>', '<End>', '<PageUp>', '<PageDown>', '<S-Down>', '<S-Up>', '<C-G>g']
 
 	for map in imaps
 		if maparg(map, "i") =~? 'delimitMate'
@@ -202,7 +202,7 @@ function! s:TestMappingsDo() "{{{
 				call s:Unmap()
 				call s:Map()
 				call delimitMate#TestMappings()
-				normal o
+				call append(line('$'),'')
 			endfor
 		endfor
 		let b:delimitMate_expand_space = temp_varsDM[0]
@@ -215,24 +215,27 @@ function! s:TestMappingsDo() "{{{
 endfunction "}}}
 
 function! s:DelimitMateDo(...) "{{{
-	" Initialize settings:
-	call s:init()
-
-	" Check if this file type is excluded:
-	if exists("g:delimitMate_excluded_ft") &&
-				\ index(split(g:delimitMate_excluded_ft, ','), &filetype, 0, 1) >= 0
-
-			" Remove any magic:
-			call s:Unmap()
-
-			" Finish here:
-			return 1
-	endif
 
 	" First, remove all magic, if needed:
 	if exists("b:delimitMate_enabled") && b:delimitMate_enabled == 1
 		call s:Unmap()
 	endif
+
+	" Check if this file type is excluded:
+	if exists("g:delimitMate_excluded_ft") &&
+				\ index(split(g:delimitMate_excluded_ft, ','), &filetype, 0, 1) >= 0
+
+		" Finish here:
+		return 1
+	endif
+
+	" Check if user tried to disable using b:loaded_delimitMate
+	if exists("b:loaded_delimitMate")
+		return 1
+	endif
+
+	" Initialize settings:
+	call s:init()
 
 	" Now, add magic:
 	call s:Map()
@@ -243,30 +246,30 @@ function! s:DelimitMateDo(...) "{{{
 endfunction "}}}
 
 function! s:DelimitMateSwitch() "{{{
-	call s:init()
 	if exists("b:delimitMate_enabled") && b:delimitMate_enabled
 		call s:Unmap()
 		echo "delimitMate has been disabled."
 	else
 		call s:Unmap()
+		call s:init()
 		call s:Map()
 		echo "delimitMate has been enabled."
 	endif
 endfunction "}}}
 
-function! s:Finish()
+function! s:Finish() " {{{
 	if exists('g:delimitMate_loaded')
-		return delimitMate#Finish()
+		return delimitMate#Finish(1)
 	endif
 	return ''
-endfunction
+endfunction " }}}
 
-function! s:FlushBuffer()
+function! s:FlushBuffer() " {{{
 	if exists('g:delimitMate_loaded')
 		return delimitMate#FlushBuffer()
 	endif
 	return ''
-endfunction
+endfunction " }}}
 
 "}}}
 
@@ -321,16 +324,34 @@ endfunction "}}}
 function! s:ExtraMappings() "{{{
 	" If pair is empty, delete both delimiters:
 	inoremap <silent> <Plug>delimitMateBS <C-R>=delimitMate#BS()<CR>
+	if !hasmapto('<Plug>delimitMateBS','i')
+		silent! imap <unique> <buffer> <BS> <Plug>delimitMateBS
+	endif
 	" If pair is empty, delete closing delimiter:
 	inoremap <silent> <expr> <Plug>delimitMateS-BS delimitMate#WithinEmptyPair() ? "\<C-R>=delimitMate#Del()\<CR>" : "\<S-BS>"
+	if !hasmapto('<Plug>delimitMateS-BS','i')
+		silent! imap <unique> <buffer> <S-BS> <Plug>delimitMateS-BS
+	endif
 	" Expand return if inside an empty pair:
 	inoremap <silent> <Plug>delimitMateCR <C-R>=delimitMate#ExpandReturn()<CR>
+	if b:_l_delimitMate_expand_cr != 0 && !hasmapto('<Plug>delimitMateCR', 'i')
+		silent! imap <unique> <buffer> <CR> <Plug>delimitMateCR
+	endif
 	" Expand space if inside an empty pair:
 	inoremap <silent> <Plug>delimitMateSpace <C-R>=delimitMate#ExpandSpace()<CR>
-	" Jump out ot any empty pair:
+	if b:_l_delimitMate_expand_space != 0 && !hasmapto('<Plug>delimitMateSpace', 'i')
+		silent! imap <unique> <buffer> <Space> <Plug>delimitMateSpace
+	endif
+	" Jump over any delimiter:
 	inoremap <silent> <Plug>delimitMateS-Tab <C-R>=delimitMate#JumpAny("\<S-Tab>")<CR>
+	if b:_l_delimitMate_tab2exit && !hasmapto('<Plug>delimitMateS-Tab', 'i')
+		silent! imap <unique> <buffer> <S-Tab> <Plug>delimitMateS-Tab
+	endif
 	" Change char buffer on Del:
 	inoremap <silent> <Plug>delimitMateDel <C-R>=delimitMate#Del()<CR>
+	if !hasmapto('<Plug>delimitMateDel', 'i')
+		silent! imap <unique> <buffer> <Del> <Plug>delimitMateDel
+	endif
 	" Flush the char buffer on movement keystrokes or when leaving insert mode:
 	for map in ['Esc', 'Left', 'Right', 'Home', 'End']
 		exec 'inoremap <silent> <Plug>delimitMate'.map.' <C-R>=<SID>Finish()<CR><'.map.'>'
@@ -347,31 +368,18 @@ function! s:ExtraMappings() "{{{
 	endfor
 	" Avoid ambiguous mappings:
 	for map in ['LeftMouse', 'RightMouse']
-		exec 'inoremap <silent> <Plug>delimitMateM'.map.' <C-R>=delimitMate#Finish()<CR><'.map.'>'
+		exec 'inoremap <silent> <Plug>delimitMateM'.map.' <C-R>=delimitMate#Finish(1)<CR><'.map.'>'
 		if !hasmapto('<Plug>delimitMate'.map, 'i')
 			exec 'silent! imap <unique> <buffer> <'.map.'> <Plug>delimitMateM'.map
 		endif
 	endfor
 
-	" Map away!
-	if !hasmapto('<Plug>delimitMateDel', 'i')
-		silent! imap <unique> <buffer> <Del> <Plug>delimitMateDel
+	" Jump over next delimiters
+	inoremap <buffer> <Plug>delimitMateJumpMany <C-R>=len(b:_l_delimitMate_buffer) ? delimitMate#Finish(0) : delimitMate#JumpMany()<CR>
+	if !hasmapto('<Plug>delimitMateJumpMany')
+		imap <silent> <buffer> <C-G>g <Plug>delimitMateJumpMany
 	endif
-	if !hasmapto('<Plug>delimitMateBS','i')
-		silent! imap <unique> <buffer> <BS> <Plug>delimitMateBS
-	endif
-	if !hasmapto('<Plug>delimitMateS-BS','i')
-		silent! imap <unique> <buffer> <S-BS> <Plug>delimitMateS-BS
-	endif
-	if b:_l_delimitMate_expand_cr != 0 && !hasmapto('<Plug>delimitMateCR', 'i')
-		silent! imap <unique> <buffer> <CR> <Plug>delimitMateCR
-	endif
-	if b:_l_delimitMate_expand_space != 0 && !hasmapto('<Plug>delimitMateSpace', 'i')
-		silent! imap <unique> <buffer> <Space> <Plug>delimitMateSpace
-	endif
-	if b:_l_delimitMate_tab2exit && !hasmapto('<Plug>delimitMateS-Tab', 'i')
-		silent! imap <unique> <buffer> <S-Tab> <Plug>delimitMateS-Tab
-	endif
+
 	" The following simply creates an ambiguous mapping so vim fully processes
 	" the escape sequence for terminal keys, see 'ttimeout' for a rough
 	" explanation, this just forces it to work
@@ -406,8 +414,9 @@ augroup delimitMate
 
 	" Run on new buffers.
 	autocmd BufNewFile,BufRead,BufEnter *
-				\ if !exists("b:loaded_delimitMate") |
+				\ if !exists('b:delimitMate_was_here') |
 				\   call <SID>DelimitMateDo() |
+				\   let b:delimitMate_was_here = 1 |
 				\ endif
 
 	" Flush the char buffer:
